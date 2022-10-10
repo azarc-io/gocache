@@ -17,6 +17,10 @@ func (o *Options) isEmpty() bool {
 	return o.cost == 0 && o.expiration == 0 && len(o.tags) == 0
 }
 
+func (o *Options) Expiration() time.Duration {
+	return o.expiration
+}
+
 func applyOptionsWithDefault(defaultOptions *Options, opts ...Option) *Options {
 	returnedOptions := &Options{}
 	*returnedOptions = *defaultOptions
@@ -28,7 +32,7 @@ func applyOptionsWithDefault(defaultOptions *Options, opts ...Option) *Options {
 	return returnedOptions
 }
 
-func applyOptions(opts ...Option) *Options {
+func ApplyOptions(opts ...Option) *Options {
 	o := &Options{}
 
 	for _, opt := range opts {

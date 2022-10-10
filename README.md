@@ -301,6 +301,40 @@ marshal.Delete(ctx, "my-key")
 
 The only thing you have to do is to specify the struct in which you want your value to be un-marshalled as a second argument when calling the `.Get()` method.
 
+### Stale Cache Wrapper
+
+If you would like to allow stale cache in stores, you can wrap stores with a Stale Cache Wrapper which overrides the
+underlying stores TTL by an extended "Max Stale TTL" duration. This allows you to implement functionality like serving up stale content
+but then performing a refresh in the background to ensure cached data is always available to the caller.
+
+```go
+// Initialise any other store
+s := store.NewStore()
+
+// Wrap the new store with the Stale Cache
+ws := store_wrapper.NewStaleCache(s, 24*time.Hour)
+
+// Set cache with Expiration settings of 10 minutes. This in effect sets the underlying stores
+// TTL to 24h + 10 minutes.
+err := ws.Set(ctx, cacheKey, cacheValue, store.WithExpiration(10*time.Minute))
+if err != nil {
+    panic(err)
+}
+
+// Wait for 15 minutes and then retrieve cache. This retrieves the cache from underlying store and 
+// subtracts the MaxStaleTTL to give you the relative TTL from the originally set cache call.
+value, ttlRemaining, err := s.GetWithTTL(ctx, cacheKey)
+if err != nil {
+    panic(err)
+}
+
+// Duration: -5m0s. The negative number denotes that the original expiry time has passed by 5m but the cache was still
+//  returned as the max stale TTL was set to 24 hours. In this example the calculated TTL was:
+//  24h (MaxStaleTTL) + 10m (original cache expiration) = 24h10m
+//  24h10m - 15m (wait time) = 23h55m (Total Cache Time Remaining)
+//  23h55m (Total Cache Time Remaining) - 24h (MaxStaleTTL) = -5m0s (Stale Cache TTL)
+fmt.Sprintf("Duration: %s", ttlRemaining)
+```
 
 ### Cache invalidation using tags
 
