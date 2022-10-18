@@ -1,36 +1,35 @@
-package store_wrappers
+package cache
 
 import (
 	"context"
 	"errors"
-	"testing"
-	"time"
-
 	"github.com/eko/gocache/v3/store"
-	mocks "github.com/eko/gocache/v3/test/mocks/store"
+	mocksCache "github.com/eko/gocache/v3/test/mocks/cache"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 )
 
-func getMockCache(t *testing.T) *mocks.MockStoreInterface {
-	return mocks.NewMockStoreInterface(gomock.NewController(t))
+func getMockCache[T any](t *testing.T) *mocksCache.MockSetterCacheInterface[T] {
+	return mocksCache.NewMockSetterCacheInterface[T](gomock.NewController(t))
 }
 
-func TestNewStaleCache(t *testing.T) {
+func TestNewStaleable(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 
 	// Then
-	assert.IsType(t, new(StaleCacheStore), s)
+	assert.IsType(t, new(StaleableCache[any]), s)
 	assert.Equal(t, ic, s.cache)
 }
 
 func TestStaleCacheGet(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 
 	cacheKey := "my-key"
@@ -39,7 +38,7 @@ func TestStaleCacheGet(t *testing.T) {
 	ic.EXPECT().Get(ctx, cacheKey).Return(cacheValue, nil)
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 	value, err := s.Get(ctx, cacheKey)
 
 	// Then
@@ -49,14 +48,14 @@ func TestStaleCacheGet(t *testing.T) {
 
 func TestStaleCacheGetWhenError(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 
 	cacheKey := "my-key"
 	ic.EXPECT().Get(ctx, cacheKey).Return(nil, store.NotFound{})
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 	value, err := s.Get(ctx, cacheKey)
 
 	// Then
@@ -69,7 +68,7 @@ func TestStaleCacheGetWithTTL(t *testing.T) {
 	extendedExpiry := 5 * time.Second
 
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 
 	cacheKey := "my-key"
@@ -77,7 +76,7 @@ func TestStaleCacheGetWithTTL(t *testing.T) {
 	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, addCacheDuration+extendedExpiry, nil)
 
 	// When
-	s := NewStaleCache(ic, extendedExpiry)
+	s := NewStaleable[any](ic, extendedExpiry)
 	value, ttl, err := s.GetWithTTL(ctx, cacheKey)
 
 	// Then
@@ -93,7 +92,7 @@ func TestStaleCacheGetWithTTLButStaleCache(t *testing.T) {
 	remainingDur := extendedExpiry + addCacheDuration
 
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 
 	cacheKey := "my-key"
@@ -101,7 +100,7 @@ func TestStaleCacheGetWithTTLButStaleCache(t *testing.T) {
 	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, remainingDur, nil)
 
 	// When
-	s := NewStaleCache(ic, extendedExpiry)
+	s := NewStaleable[any](ic, extendedExpiry)
 	value, ttl, err := s.GetWithTTL(ctx, cacheKey)
 
 	// Then
@@ -112,14 +111,14 @@ func TestStaleCacheGetWithTTLButStaleCache(t *testing.T) {
 
 func TestStaleCacheGetWithTTLWhenError(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	cacheKey := "my-key"
 
 	ctx := context.Background()
 	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(nil, 0*time.Second, store.NotFound{})
 
 	// When
-	s := NewStaleCache(ic, 1*time.Second)
+	s := NewStaleable[any](ic, 1*time.Second)
 	value, ttl, err := s.GetWithTTL(ctx, cacheKey)
 
 	// Then
@@ -130,7 +129,7 @@ func TestStaleCacheGetWithTTLWhenError(t *testing.T) {
 
 func TestStaleCacheSet(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 	expiry := store.WithExpiration(1 * time.Second)
 
@@ -143,7 +142,7 @@ func TestStaleCacheSet(t *testing.T) {
 	})
 
 	// When
-	s := NewStaleCache(ic, 5*time.Second)
+	s := NewStaleable[any](ic, 5*time.Second)
 	err := s.Set(ctx, cacheKey, cacheValue, expiry)
 
 	// Then
@@ -155,14 +154,14 @@ func TestStaleCacheSet(t *testing.T) {
 
 func TestStaleCacheDelete(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 	cacheKey := "my-key"
 
 	ic.EXPECT().Delete(ctx, cacheKey).Return(nil)
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 	err := s.Delete(ctx, cacheKey)
 
 	// Then
@@ -171,7 +170,7 @@ func TestStaleCacheDelete(t *testing.T) {
 
 func TestStaleCacheInvalidate(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 	tags := []string{"a23fdf987h2svc23", "jHG2372x38hf74"}
 
@@ -181,7 +180,7 @@ func TestStaleCacheInvalidate(t *testing.T) {
 	})
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 	err := s.Invalidate(ctx, store.WithInvalidateTags(tags))
 
 	// Then
@@ -192,7 +191,7 @@ func TestStaleCacheInvalidate(t *testing.T) {
 
 func TestStaleCacheInvalidateWhenError(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 	expectErr := errors.New("dummy")
 	tags := []string{"a23fdf987h2svc23", "jHG2372x38hf74"}
@@ -200,7 +199,7 @@ func TestStaleCacheInvalidateWhenError(t *testing.T) {
 	ic.EXPECT().Invalidate(ctx, gomock.Any()).Return(expectErr)
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 	err := s.Invalidate(ctx, store.WithInvalidateTags(tags))
 
 	// Then
@@ -209,13 +208,13 @@ func TestStaleCacheInvalidateWhenError(t *testing.T) {
 
 func TestStaleCacheClear(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 	ctx := context.Background()
 
 	ic.EXPECT().Clear(ctx)
 
 	// When
-	s := NewStaleCache(ic, time.Second)
+	s := NewStaleable[any](ic, time.Second)
 	err := s.Clear(ctx)
 
 	// Then
@@ -224,9 +223,9 @@ func TestStaleCacheClear(t *testing.T) {
 
 func TestStaleCacheGetType(t *testing.T) {
 	// Given
-	ic := getMockCache(t)
+	ic := getMockCache[any](t)
 
 	// When - Then
-	s := NewStaleCache(ic, time.Second)
-	assert.Equal(t, StaleCacheWrapper, s.GetType())
+	s := NewStaleable[any](ic, time.Second)
+	assert.Equal(t, StaleableType, s.GetType())
 }
