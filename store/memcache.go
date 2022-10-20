@@ -41,7 +41,7 @@ type MemcacheStore struct {
 func NewMemcache(client MemcacheClientInterface, options ...Option) *MemcacheStore {
 	return &MemcacheStore{
 		client:  client,
-		options: applyOptions(options...),
+		options: ApplyOptions(options...),
 	}
 }
 
@@ -163,7 +163,7 @@ func (s *MemcacheStore) Delete(_ context.Context, key any) error {
 
 // Invalidate invalidates some cache data in Memcache for given options
 func (s *MemcacheStore) Invalidate(ctx context.Context, options ...InvalidateOption) error {
-	opts := applyInvalidateOptions(options...)
+	opts := ApplyInvalidateOptions(options...)
 
 	if tags := opts.tags; len(tags) > 0 {
 		for _, tag := range tags {

@@ -37,7 +37,7 @@ type RedisStore struct {
 func NewRedis(client RedisClientInterface, options ...Option) *RedisStore {
 	return &RedisStore{
 		client:  client,
-		options: applyOptions(options...),
+		options: ApplyOptions(options...),
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *RedisStore) Delete(ctx context.Context, key any) error {
 
 // Invalidate invalidates some cache data in Redis for given options
 func (s *RedisStore) Invalidate(ctx context.Context, options ...InvalidateOption) error {
-	opts := applyInvalidateOptions(options...)
+	opts := ApplyInvalidateOptions(options...)
 
 	if tags := opts.tags; len(tags) > 0 {
 		for _, tag := range tags {

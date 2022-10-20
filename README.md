@@ -242,6 +242,72 @@ cacheManager := cache.NewLoadable[*Book](
 
 Of course, you can also pass a `Chain` cache into the `Loadable` one so if your data is not available in all caches, it will bring it back in all caches.
 
+### Stale Cache Wrapper
+
+If you would like to allow stale cache in stores, you can wrap cache with a Stale Cache Wrapper which overrides the
+underlying caches TTL by an extended "Max Stale TTL" duration. This allows you to implement functionality like serving up stale content
+but then performing a refresh in the background to ensure cached data is always available to the caller.
+
+```go
+// Initialise any other cache
+c := cache.New[string]()
+
+// Wrap the new cache with the StaleableCache
+ws := cache.NewStaleable[string](
+	c, 
+	cache.WithTTL[string](10*time.Minute),
+	cache.WithMaxStaleCacheTTL[string](24*time.Hour),
+	cache.WithStaleCacheLoadFunction[string](func(ctx context.Context, key any) (string, error) {
+		// retrieve value for the given key
+		return "some value"
+	}),
+	cache.WithStaleCachePredicate[[]byte](func(key any, value string) bool {
+		// store value in cache only if it's longer than 5 characters
+		return len(value) > 5
+	}),
+)
+
+// Set cache with Expiration settings of 10 minutes. This in effect sets the underlying stores
+// TTL to 24h + 10 minutes.
+err := ws.Set(ctx, cacheKey, cacheValue)
+if err != nil {
+    panic(err)
+}
+
+// Wait for 15 minutes and then retrieve cache. This retrieves the cache from underlying store and 
+// subtracts the MaxStaleTTL to give you the relative TTL from the originally set cache call.
+value, ttlRemaining, err := s.GetWithTTL(ctx, cacheKey)
+if err != nil {
+    panic(err)
+}
+
+// Duration: -5m0s. The negative number denotes that the original expiry time has passed by 5m but the cache was still
+//  returned as the max stale TTL was set to 24 hours. In this example the calculated TTL was:
+//  24h (MaxStaleTTL) + 10m (original cache expiration) = 24h10m
+//  24h10m - 15m (wait time) = 23h55m (Total Cache Time Remaining)
+//  23h55m (Total Cache Time Remaining) - 24h (MaxStaleTTL) = -5m0s (Stale Cache TTL)
+fmt.Sprintf("Duration: %s", ttlRemaining)
+```
+
+#### WithTTL
+
+Provide a ttl value for the cache. It represents a duration for how much time a cache entry is active
+
+#### WithMaxStaleCacheTTL
+
+Provide a Max Stale Cache TTL value. It represents a duration for how much time a cache entry is staled, which means
+it's still good to be served but needs to be refreshed
+
+#### WithStaleCacheLoadFunction
+
+Provide a LoadFunction. It is called if there is no cache entry for the provided key or it is staled and needs to be
+refreshed
+
+#### WithStaleCachePredicate
+
+Provide a ShouldCachePredicate function. It is called after the LoadFunction and decides whether the value should be
+cached or not
+
 ### A metric cache to retrieve cache statistics
 
 This cache will record metrics depending on the metric provider you pass to it. Here we give a Prometheus provider:
@@ -300,7 +366,6 @@ marshal.Delete(ctx, "my-key")
 ```
 
 The only thing you have to do is to specify the struct in which you want your value to be un-marshalled as a second argument when calling the `.Get()` method.
-
 
 ### Cache invalidation using tags
 

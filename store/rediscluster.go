@@ -37,7 +37,7 @@ type RedisClusterStore struct {
 func NewRedisCluster(client RedisClusterClientInterface, options ...Option) *RedisClusterStore {
 	return &RedisClusterStore{
 		clusclient: client,
-		options:    applyOptions(options...),
+		options:    ApplyOptions(options...),
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *RedisClusterStore) Delete(ctx context.Context, key any) error {
 
 // Invalidate invalidates some cache data in Redis for given options
 func (s *RedisClusterStore) Invalidate(ctx context.Context, options ...InvalidateOption) error {
-	opts := applyInvalidateOptions(options...)
+	opts := ApplyInvalidateOptions(options...)
 
 	if tags := opts.tags; len(tags) > 0 {
 		for _, tag := range tags {

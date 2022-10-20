@@ -11,8 +11,12 @@ func (o *invalidateOptions) isEmpty() bool {
 	return len(o.tags) == 0
 }
 
+func (o *invalidateOptions) Tags() []string {
+	return o.tags
+}
+
 func applyInvalidateOptionsWithDefault(defaultOptions *invalidateOptions, opts ...InvalidateOption) *invalidateOptions {
-	returnedOptions := applyInvalidateOptions(opts...)
+	returnedOptions := ApplyInvalidateOptions(opts...)
 
 	if returnedOptions == new(invalidateOptions) {
 		returnedOptions = defaultOptions
@@ -21,7 +25,7 @@ func applyInvalidateOptionsWithDefault(defaultOptions *invalidateOptions, opts .
 	return returnedOptions
 }
 
-func applyInvalidateOptions(opts ...InvalidateOption) *invalidateOptions {
+func ApplyInvalidateOptions(opts ...InvalidateOption) *invalidateOptions {
 	o := &invalidateOptions{}
 
 	for _, opt := range opts {

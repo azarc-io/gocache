@@ -37,7 +37,7 @@ type FreecacheStore struct {
 func NewFreecache(client FreecacheClientInterface, options ...Option) *FreecacheStore {
 	return &FreecacheStore{
 		client:  client,
-		options: applyOptions(options...),
+		options: ApplyOptions(options...),
 	}
 }
 
@@ -151,7 +151,7 @@ func (f *FreecacheStore) Delete(_ context.Context, key any) error {
 
 // Invalidate invalidates some cache data in freecache for given options
 func (f *FreecacheStore) Invalidate(ctx context.Context, options ...InvalidateOption) error {
-	opts := applyInvalidateOptions(options...)
+	opts := ApplyInvalidateOptions(options...)
 
 	if tags := opts.tags; len(tags) > 0 {
 		for _, tag := range tags {

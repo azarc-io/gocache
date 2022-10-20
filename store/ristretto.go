@@ -33,7 +33,7 @@ type RistrettoStore struct {
 func NewRistretto(client RistrettoClientInterface, options ...Option) *RistrettoStore {
 	return &RistrettoStore{
 		client:  client,
-		options: applyOptions(options...),
+		options: ApplyOptions(options...),
 	}
 }
 
@@ -111,7 +111,7 @@ func (s *RistrettoStore) Delete(_ context.Context, key any) error {
 
 // Invalidate invalidates some cache data in Redis for given options
 func (s *RistrettoStore) Invalidate(ctx context.Context, options ...InvalidateOption) error {
-	opts := applyInvalidateOptions(options...)
+	opts := ApplyInvalidateOptions(options...)
 
 	if tags := opts.tags; len(tags) > 0 {
 		for _, tag := range tags {

@@ -30,7 +30,7 @@ func New[T any](store store.StoreInterface) *Cache[T] {
 
 // Get returns the object stored in cache if it exists
 func (c *Cache[T]) Get(ctx context.Context, key any) (T, error) {
-	cacheKey := c.getCacheKey(key)
+	cacheKey := getCacheKey(key)
 
 	value, err := c.codec.Get(ctx, cacheKey)
 	if err != nil {
@@ -46,7 +46,7 @@ func (c *Cache[T]) Get(ctx context.Context, key any) (T, error) {
 
 // GetWithTTL returns the object stored in cache and its corresponding TTL
 func (c *Cache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, error) {
-	cacheKey := c.getCacheKey(key)
+	cacheKey := getCacheKey(key)
 
 	value, duration, err := c.codec.GetWithTTL(ctx, cacheKey)
 	if err != nil {
@@ -62,13 +62,13 @@ func (c *Cache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, e
 
 // Set populates the cache item using the given key
 func (c *Cache[T]) Set(ctx context.Context, key any, object T, options ...store.Option) error {
-	cacheKey := c.getCacheKey(key)
+	cacheKey := getCacheKey(key)
 	return c.codec.Set(ctx, cacheKey, object, options...)
 }
 
 // Delete removes the cache item using the given key
 func (c *Cache[T]) Delete(ctx context.Context, key any) error {
-	cacheKey := c.getCacheKey(key)
+	cacheKey := getCacheKey(key)
 	return c.codec.Delete(ctx, cacheKey)
 }
 
@@ -95,7 +95,7 @@ func (c *Cache[T]) GetType() string {
 // getCacheKey returns the cache key for the given key object by returning
 // the key if type is string or by computing a checksum of key structure
 // if its type is other than string
-func (c *Cache[T]) getCacheKey(key any) string {
+func getCacheKey(key any) string {
 	switch v := key.(type) {
 	case string:
 		return v
