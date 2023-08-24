@@ -83,9 +83,13 @@ func (s *StaleableCache[T]) Get(ctx context.Context, key any) (T, error) {
 	mEntry.err = err
 	if err != nil {
 		if _, ok := err.(*store.NotFound); ok {
-			// record does not exist, need to load it syncronously
+			// record does not exist, need to load it synchronously
 			mEntry.value, mEntry.err = s.loadAndStore(ctx, key)
 		}
+		s.inprogressMap.Delete(stringKey)
+	} else if ttl+s.minimumTTL < 0 {
+		// record was expired but not removed automatically from the store
+		mEntry.value, mEntry.err = s.loadAndStore(ctx, key)
 		s.inprogressMap.Delete(stringKey)
 	} else if ttl < 0 {
 		// record is staled, need to refresh in background
@@ -127,7 +131,7 @@ func (s *StaleableCache[T]) loadAndStore(ctx context.Context, key any) (T, error
 }
 
 // GetWithTTL returns data stored from a given key and its corresponding TTL.
-//  when negative TTL is returned, this means that the original cache TTL expired and should be refreshed
+// when negative TTL is returned, this means that the original cache TTL expired and should be refreshed
 func (s *StaleableCache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, error) {
 	value, storeCacheDuration, err := s.cache.GetWithTTL(ctx, key)
 	if err != nil {

@@ -71,16 +71,18 @@ func TestStaleCacheGetWithRefreshFunction(t *testing.T) {
 	cacheKey := "my-key"
 	cacheValue := "my-cache-value"
 	updatedCacheValue := "updated-cache-value"
+	ttl := time.Second
+	staleTTL := time.Minute
 
 	loadFunc := func(_ context.Context, key any) (any, error) {
 		return updatedCacheValue, nil
 	}
 
-	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, time.Second, nil)
+	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, 2*time.Second, nil)
 	ic.EXPECT().Set(ctx, cacheKey, updatedCacheValue, gomock.Any())
 
 	// When
-	s := NewStaleable[any](ic, WithMaxStaleCacheTTL[any](time.Minute), WithStaleCacheLoadFunction[any](loadFunc))
+	s := NewStaleable[any](ic, WithTTL[any](ttl), WithMaxStaleCacheTTL[any](staleTTL), WithStaleCacheLoadFunction[any](loadFunc))
 	value, err := s.Get(ctx, cacheKey)
 
 	// Then
@@ -181,6 +183,36 @@ func TestStaleCacheGetWithTTLButStaleCache(t *testing.T) {
 	assert.Equal(t, ttl, -2*time.Second) // note: negative number for remaining TTL indicates stale cache
 }
 
+func TestStaleCacheGetWithNegativeTTL(t *testing.T) {
+	ttlValue := time.Second
+	staleTTLValue := time.Minute
+
+	// Given
+	ic := getMockCache[any](t)
+	ctx := context.Background()
+
+	cacheKey := "my-key"
+	cacheValue := "my-cache-value"
+	updatedCacheValue := "updated-cache-value"
+	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, -time.Second, nil)
+	ic.EXPECT().Set(ctx, cacheKey, updatedCacheValue, &TTLOptionMatcher{TTL: ttlValue + staleTTLValue}).Return(nil)
+
+	loadFunc := func(_ context.Context, key any) (any, error) {
+		return updatedCacheValue, nil
+	}
+	// When
+	s := NewStaleable[any](ic,
+		WithTTL[any](ttlValue),
+		WithMaxStaleCacheTTL[any](staleTTLValue),
+		WithStaleCacheLoadFunction[any](loadFunc),
+	)
+	value, err := s.Get(ctx, cacheKey)
+
+	// Then
+	assert.Nil(t, err)
+	assert.Equal(t, updatedCacheValue, value)
+}
+
 func TestStaleCacheGetWithTTLWhenError(t *testing.T) {
 	// Given
 	ic := getMockCache[any](t)
@@ -226,7 +258,7 @@ func TestStaleCacheGetWithParallelRequests(t *testing.T) {
 	staleTTLValue := time.Minute
 
 	ctx := context.Background()
-	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, -time.Second, nil)
+	ic.EXPECT().GetWithTTL(ctx, cacheKey).Return(cacheValue, 2*time.Second, nil)
 	ic.EXPECT().Set(ctx, cacheKey, updatedCacheValue, &TTLOptionMatcher{TTL: ttlValue + staleTTLValue}).Times(1)
 
 	// When
