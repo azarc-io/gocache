@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"crypto"
+	"encoding/base64"
 	"fmt"
 	"reflect"
 	"time"
@@ -55,6 +56,19 @@ func (c *Cache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, e
 
 	if v, ok := value.(T); ok {
 		return v, duration, nil
+	} else {
+		// in case we have []byte in store, it is returned as base64 string but we expect []byte,
+		// we need to decode the base64 string to []byte
+		if valStr, valOk := value.(string); valOk {
+			if _, tOk := any(*new(T)).([]byte); tOk {
+				decodedValue, err := base64.StdEncoding.DecodeString(valStr)
+				if err != nil {
+					// return the string value as []byte if it's not a base64 string
+					return any([]byte(valStr)).(T), duration, err
+				}
+				return any(decodedValue).(T), duration, nil
+			}
+		}
 	}
 
 	return *new(T), duration, nil
