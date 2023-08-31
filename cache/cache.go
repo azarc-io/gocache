@@ -48,20 +48,26 @@ func (c *Cache[T]) Get(ctx context.Context, key any) (T, error) {
 // GetWithTTL returns the object stored in cache and its corresponding TTL
 func (c *Cache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, error) {
 	cacheKey := getCacheKey(key)
+	fmt.Println("go cache: GetWithTTL: cacheKey: ", cacheKey)
 
 	value, duration, err := c.codec.GetWithTTL(ctx, cacheKey)
 	if err != nil {
 		return *new(T), duration, err
 	}
 
+	fmt.Printf("go cache: GetWithTTL: value: (%T) %+v\n", value, value)
+
 	if v, ok := value.(T); ok {
+		fmt.Println("go cache: GetWithTTL: return value")
 		return v, duration, nil
 	} else {
+		fmt.Println("go cache: GetWithTTL: try to convert to []byte")
 		// in case we have []byte in store, it is returned as base64 string but we expect []byte,
 		// we need to decode the base64 string to []byte
 		if valStr, valOk := value.(string); valOk {
 			if _, tOk := any(*new(T)).([]byte); tOk {
 				decodedValue, err := base64.StdEncoding.DecodeString(valStr)
+				fmt.Println("go cache: GetWithTTL: decoded value: ", decodedValue)
 				if err != nil {
 					// return the string value as []byte if it's not a base64 string
 					return any([]byte(valStr)).(T), duration, err
