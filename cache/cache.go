@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"reflect"
 	"time"
 
@@ -39,46 +38,19 @@ func (c *Cache[T]) Get(ctx context.Context, key any) (T, error) {
 		return *new(T), err
 	}
 
-	if v, ok := value.(T); ok {
-		return v, nil
-	}
-
-	return *new(T), nil
+	return handleReturnValue[T](value), nil
 }
 
 // GetWithTTL returns the object stored in cache and its corresponding TTL
 func (c *Cache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, error) {
 	cacheKey := getCacheKey(key)
-	log.Println("go cache: GetWithTTL: cacheKey: ", cacheKey)
 
 	value, duration, err := c.codec.GetWithTTL(ctx, cacheKey)
 	if err != nil {
 		return *new(T), duration, err
 	}
 
-	log.Printf("go cache: GetWithTTL: value: (%T) %+v\n", value, value)
-
-	if v, ok := value.(T); ok {
-		log.Println("go cache: GetWithTTL: return value")
-		return v, duration, nil
-	} else {
-		log.Println("go cache: GetWithTTL: try to convert to []byte")
-		// in case we have []byte in store, it is returned as base64 string but we expect []byte,
-		// we need to decode the base64 string to []byte
-		if valStr, valOk := value.(string); valOk {
-			if _, tOk := any(*new(T)).([]byte); tOk {
-				decodedValue, err := base64.StdEncoding.DecodeString(valStr)
-				log.Println("go cache: GetWithTTL: decoded value: ", decodedValue)
-				if err != nil {
-					// return the string value as []byte if it's not a base64 string
-					return any([]byte(valStr)).(T), duration, err
-				}
-				return any(decodedValue).(T), duration, nil
-			}
-		}
-	}
-
-	return *new(T), duration, nil
+	return handleReturnValue[T](value), duration, nil
 }
 
 // Set populates the cache item using the given key
@@ -135,4 +107,24 @@ func checksum(object any) string {
 	hash := digester.Sum(nil)
 
 	return fmt.Sprintf("%x", hash)
+}
+
+func handleReturnValue[T any](value any) T {
+	if v, ok := value.(T); ok {
+		return v
+	} else {
+		// in case we have []byte in store, it is returned as base64 string but we expect []byte,
+		// we need to decode the base64 string to []byte
+		if valStr, valOk := value.(string); valOk {
+			if _, tOk := any(*new(T)).([]byte); tOk {
+				decodedValue, err := base64.StdEncoding.DecodeString(valStr)
+				if err != nil {
+					// return the string value as []byte if it's not a base64 string
+					return any([]byte(valStr)).(T)
+				}
+				return any(decodedValue).(T)
+			}
+		}
+	}
+	return *new(T)
 }

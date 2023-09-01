@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"github.com/eko/gocache/v3/store"
-	"log"
 	"sync"
 	"time"
 )
@@ -135,7 +134,6 @@ func (s *StaleableCache[T]) loadAndStore(ctx context.Context, key any) (T, error
 // when negative TTL is returned, this means that the original cache TTL expired and should be refreshed
 func (s *StaleableCache[T]) GetWithTTL(ctx context.Context, key any) (T, time.Duration, error) {
 	value, storeCacheDuration, err := s.cache.GetWithTTL(ctx, key)
-	log.Println("go staleableCache: GetWithTTL: cachedValue: ", value)
 	if err != nil {
 		return *new(T), 0, err
 	}
